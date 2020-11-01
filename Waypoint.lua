@@ -257,7 +257,7 @@ function Course:init(vehicle, waypoints, temporary, first, last)
 	end
 	-- offset to apply to every position
 	self.offsetX, self.offsetZ = 0, 0
-	self.temporaryOffsetX, self.temporaryOffsetZ = 0, 0
+	self.temporaryOffsetX, self.temporaryOffsetZ = CpSlowChangingObject(0, 0), CpSlowChangingObject(0, 0)
 	self.numberOfHeadlands = 0
 	self.workWidth = 0
 	-- only for logging purposes
@@ -309,21 +309,9 @@ function Course:getOffset()
 end
 
 --- Temporary offset to apply. This is to use an offset temporarily without overwriting the normal offset of the course
-function Course:setTemporaryOffset(x, z)
-	self.temporaryOffsetX, self.temporaryOffsetZ = x, z
-end
-
---- Slowly adjust the offset X until it reaches targetOffsetX
-function Course:setTargetTemporaryOffsetX(targetOffsetX)
-	if targetOffsetX ~= self.temporaryOffsetX then
-		local step = 0.2
-		local dx = targetOffsetX - self.temporaryOffsetX
-		if math.abs(dx) < step then
-			self.temporaryOffsetX = targetOffsetX
-		else
-			self.temporaryOffsetX = self.temporaryOffsetX + (self.temporaryOffsetX < targetOffsetX and step or -step)
-		end
-	end
+function Course:setTemporaryOffset(x, z, t)
+	self.temporaryOffsetX:set(x, t)
+	self.temporaryOffsetZ:set(z, t)
 end
 
 function Course:setWorkWidth(w)
@@ -586,13 +574,13 @@ function Course:getWaypointPosition(ix)
 		-- when calculating the offset for a turn start wp.
 		return self:getOffsetPositionWithOtherWaypointDirection(ix, ix - 1)
 	else
-		return self.waypoints[ix]:getOffsetPosition(self.offsetX + self.temporaryOffsetX, self.offsetZ + self.temporaryOffsetZ)
+		return self.waypoints[ix]:getOffsetPosition(self.offsetX + self.temporaryOffsetX:get(), self.offsetZ + self.temporaryOffsetZ:get())
 	end
 end
 
 ---Return the offset coordinates of waypoint ix as if it was pointing to the same direction as waypoint ixDir
 function Course:getOffsetPositionWithOtherWaypointDirection(ix, ixDir)
-	return self.waypoints[ix]:getOffsetPosition(self.offsetX + self.temporaryOffsetX, self.offsetZ + self.temporaryOffsetZ,
+	return self.waypoints[ix]:getOffsetPosition(self.offsetX + self.temporaryOffsetX:get(), self.offsetZ + self.temporaryOffsetZ:get(),
 			self.waypoints[ixDir].dx, self.waypoints[ixDir].dz)
 end
 

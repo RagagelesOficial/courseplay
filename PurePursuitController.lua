@@ -71,6 +71,7 @@ function PurePursuitController:init(vehicle)
 	self.baseLookAheadDistance = self.normalLookAheadDistance
 	-- adapted look ahead distance 
 	self.lookAheadDistance = self.baseLookAheadDistance
+	self.temporaryLookAheadDistance = CpTemporaryObject(nil)
 	-- when transitioning from forward to reverse, this close we have to be to the waypoint where we
 	-- change direction before we switch to the next waypoint
 	self.distToSwitchWhenChangingToReverse = 1
@@ -193,8 +194,18 @@ function PurePursuitController:setShortLookaheadDistance()
 	self.baseLookAheadDistance = self.shortLookaheadDistance
 end
 
+--- Set a short lookahead distance for just one update loop
+function PurePursuitController:setTemporaryShortLookaheadDistance(ttlMs)
+	self.temporaryLookAheadDistance:set(self.shortLookaheadDistance, ttlMs)
+end
+
 function PurePursuitController:getLookaheadDistance()
-	return self.baseLookAheadDistance
+	return self.lookAheadDistance
+end
+
+function PurePursuitController:setCurrentLookaheadDistance(cte)
+	local la = self.temporaryLookAheadDistance:get() or self.baseLookAheadDistance
+	self.lookAheadDistance = math.min(la + math.abs(cte), la * 2)
 end
 
 --- get index of current waypoint (one we are driving towards)
@@ -330,10 +341,12 @@ end
 function PurePursuitController:findRelevantSegment()
 	-- vehicle position
 	local vx, vy, vz = getWorldTranslation(self.controlledNode)
+	-- update the position of the relevant node (in case the course offset changed)
+	self.relevantWpNode:setToWaypoint(self.course, self.relevantWpNode.ix)
 	local lx, _, dzFromRelevant = worldToLocal(self.relevantWpNode.node, vx, vy, vz);
 	self.crossTrackError = lx
 	-- adapt our lookahead distance based on the error
-	self.lookAheadDistance = math.min(self.baseLookAheadDistance + math.abs(self.crossTrackError), self.baseLookAheadDistance * 2)
+	self:setCurrentLookaheadDistance(self.crossTrackError)
 	-- projected vehicle position/rotation	
 	local px, py, pz = localToWorld(self.relevantWpNode.node, 0, 0, dzFromRelevant)
 	local _, yRot, _ = getRotation(self.relevantWpNode.node)

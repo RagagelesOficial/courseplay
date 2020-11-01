@@ -133,8 +133,9 @@ function ProximitySensorPack:init(name, vehicle, node, range, height, directions
     self.speedControlEnabled = true
     self.swerveEnabled = false
     self.rotateWithWheels = true
+    self.rotation = 0
     for _, deg in ipairs(self.directionsDeg) do
-        self.sensors[deg] = ProximitySensor(node, deg, self.range, height)
+        self.sensors[deg] = ProximitySensor(self.node, deg, self.range, height)
     end
 end
 
@@ -183,8 +184,8 @@ function ProximitySensorPack:update()
     if self.rotateWithWheels then
         -- rotate the entire pack in the direction we are turning
         local normalizedSteeringAngle = AIDriverUtil.getCurrentNormalizedSteeringAngle(self.vehicle)
-        local _, yRot, _ = getRotation(getParent(self.node))
-        setRotation(self.node, 0, yRot + normalizedSteeringAngle * ProximitySensorPack.maxRotation, 0)
+        self.rotation = normalizedSteeringAngle * ProximitySensorPack.maxRotation
+        setRotation(self.node, 0, self.rotation, 0)
     end
 
     self:callForAllSensors(ProximitySensor.update)
@@ -224,7 +225,9 @@ function ProximitySensorPack:getClosestObjectDistanceAndRootVehicle(deg)
             if d < self.range then
                 local weight = (self.range - d) / self.range
                 totalWeight = totalWeight + weight
-                totalDegs = totalDegs + weight * deg
+                -- the direction should be in the tractor's system, therefore we need to compensate here with the
+                -- current rotation of the pack
+                totalDegs = totalDegs + weight * (deg + math.deg(self.rotation))
             end
             if d < closestDistance then
                 closestDistance = d
@@ -257,6 +260,7 @@ ForwardLookingProximitySensorPack = CpObject(ProximitySensorPack)
 
 function ForwardLookingProximitySensorPack:init(vehicle, node, range, height)
     ProximitySensorPack.init(self, 'forward', vehicle, node, range, height, {0, 15, 30, 60, -15, -30, -60})
+    self:disableRotateWithWheels()
 end
 
 
@@ -265,4 +269,5 @@ BackwardLookingProximitySensorPack = CpObject(ProximitySensorPack)
 
 function BackwardLookingProximitySensorPack:init(vehicle, node, range, height)
     ProximitySensorPack.init(self, 'backward', vehicle, node, range, height, {120, 150, 180, -150, -120})
+    self:disableRotateWithWheels()
 end

@@ -404,7 +404,7 @@ function AIDriver:drive(dt)
 	-- update current waypoint/goal point
 	self.ppc:update()
 	-- collision detection
-	self:detectCollision(dt)
+	--self:detectCollision(dt)
 
 	self:updateInfoText()
 
@@ -1944,7 +1944,6 @@ end
 
 
 function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
-	--self:debug('%.1f', self.course.temporaryOffsetX)
 
 	if maxSpeed == 0 or not allowedToDrive then
 		--self.course:setTargetTemporaryOffsetX(0)
@@ -1968,18 +1967,28 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	end
 	-- we only slow down or swerve for other vehicles, if the proximity sensor hits something else, ignore (for now at least)
 	if not vehicle then
-		self.course:setTargetTemporaryOffsetX(0)
+		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
+		self:clearInfoText('TRAFFIC')
+		self.course:setTemporaryOffset(0, 0, 4000)
 		return maxSpeed, allowedToDrive
 	end
 
 	if d < AIDriver.proximityLimitLow then
 		-- too close, stop
+		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
+		self:setInfoText('TRAFFIC')
 		self:debugSparse('proximity: d = %.1f, too close, stop.', d)
 		return maxSpeed, false
 	end
 	local normalizedD = d / (range - AIDriver.proximityLimitLow)
+
+	self:debug('prox %.1f la = %.1f, norm = %d', self.course.temporaryOffsetX:get(), self.ppc:getLookaheadDistance(), normalizedD * 100)
+
+
 	if normalizedD > 1 then
-		self.course:setTargetTemporaryOffsetX(0)
+		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
+		self:clearInfoText('TRAFFIC')
+		self.course:setTemporaryOffset(0, 0, 4000)
 		-- nothing in range (d is a huge number, at least bigger than range), don't change anything
 		return maxSpeed, allowedToDrive
 	end
@@ -1988,17 +1997,18 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	local newSpeed = AIDriver.proximityMinLimitedSpeed + normalizedD * deltaV
 	-- check for nil and NaN
 	if deg and deg == deg and swerve then
-		local offsetX = deg >= -30 and 4 or -4
-	--	self:debug('d = %.1f, deg %.1f offset %.1f', d, deg, offsetX)
-		self.course:setTargetTemporaryOffsetX(offsetX)
-		self:debugSparse('proximity: d = %.1f (%d %%), slow down, speed = %.1f, swerve = %.1f',
+		local offsetX = deg >= -30 and 5 or -5
+		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
+		self.ppc:setTemporaryShortLookaheadDistance(1000)
+		self.course:setTemporaryOffset(offsetX, 0, 1000)
+		self:debug('proximity: d = %.1f (%d), slow down, speed = %.1f, swerve = %.1f',
 				d, 100 * normalizedD, newSpeed, offsetX)
 	else
-		self.course:setTargetTemporaryOffsetX(0)
-		self:debugSparse('proximity: d = %.1f (%d %%), slow down, speed = %.1f, deg = %s',
+		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
+		self.course:setTemporaryOffset(0, 0, 4000)
+		self:debug('proximity: d = %.1f (%d), slow down, speed = %.1f, deg = %s',
 				d, 100 * normalizedD, newSpeed, tostring(deg))
 	end
-
 	return newSpeed, allowedToDrive
 end
 
