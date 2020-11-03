@@ -262,7 +262,7 @@ end
 ForwardLookingProximitySensorPack = CpObject(ProximitySensorPack)
 
 function ForwardLookingProximitySensorPack:init(vehicle, node, range, height)
-    ProximitySensorPack.init(self, 'forward', vehicle, node, range, height, {0, 15, 30, 60, -15, -30, -60})
+    ProximitySensorPack.init(self, 'forward', vehicle, node, range, height, {0, 15, 30, 60, 80, -15, -30, -60, 80})
     self:disableRotateWithWheels()
 end
 

@@ -1998,12 +1998,17 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	-- check for nil and NaN
 	if deg and deg == deg and swerve then
 		local dx = dAvg * math.sin(math.rad(deg))
+		-- which direction to swerve (have a little bias for right, sorry UK folks :)
+		local dir = dx > -2 and 1 or -1
 		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self.ppc:setTemporaryShortLookaheadDistance(1000)
 		-- we should be at least 4 m from the other vehicle
-		self.course:changeTemporaryOffsetX(-(dx - 4), 1000)
-		self:debug('proximity: dAvg = %.1f (%d), slow down, speed = %.1f, swerve dx = %.1f',
-				dAvg, 100 * normalizedD, newSpeed, dx)
+		local setPoint = dir * 4
+		local error = setPoint - dx
+		local offsetChange = 0.5 * error
+		self.course:changeTemporaryOffsetX(offsetChange, 1000)
+		self:debug('proximity: dAvg = %.1f (%d), slow down, speed = %.1f, swerve dx = %.1f, setPoint = %.1f, error = %.1f, offsetChange = %.1f',
+				dAvg, 100 * normalizedD, newSpeed, dx, setPoint, error, offsetChange)
 	else
 		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self.course:setTemporaryOffset(0, 0, 4000)

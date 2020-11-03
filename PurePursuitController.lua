@@ -194,7 +194,7 @@ function PurePursuitController:setShortLookaheadDistance()
 	self.baseLookAheadDistance = self.shortLookaheadDistance
 end
 
---- Set a short lookahead distance for just one update loop
+--- Set a short lookahead distance for ttlMs milliseconds
 function PurePursuitController:setTemporaryShortLookaheadDistance(ttlMs)
 	self.temporaryLookAheadDistance:set(self.shortLookaheadDistance, ttlMs)
 end
