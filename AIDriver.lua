@@ -1950,17 +1950,17 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 		-- we are not going anywhere anyway, no use of proximity sensor here
 		return maxSpeed, allowedToDrive
 	end
-	-- minimum distance from any object in the proximity sensor's range
-	local d, vehicle, range, deg, swerve = math.huge, nil, 10, 0, false
+	-- d is minimum distance from any object in the proximity sensor's range
+	local d, vehicle, range, deg, dAvg, swerve = math.huge, nil, 10, 0, math.huge, false
 	if moveForwards then
 		if self.forwardLookingProximitySensorPack and self.forwardLookingProximitySensorPack:isSpeedControlEnabled() then
-			d, vehicle, deg = self.forwardLookingProximitySensorPack:getClosestObjectDistanceAndRootVehicle()
+			d, vehicle, deg, dAvg = self.forwardLookingProximitySensorPack:getClosestObjectDistanceAndRootVehicle()
 			range = self.forwardLookingProximitySensorPack:getRange()
 			swerve = self.forwardLookingProximitySensorPack:isSwerveEnabled()
 		end
 	else
 		if self.backwardLookingProximitySensorPack and self.backwardLookingProximitySensorPack:isSpeedControlEnabled() then
-			d, vehicle, deg = self.backwardLookingProximitySensorPack:getClosestObjectDistanceAndRootVehicle()
+			d, vehicle, deg, dAvg = self.backwardLookingProximitySensorPack:getClosestObjectDistanceAndRootVehicle()
 			range = self.backwardLookingProximitySensorPack:getRange()
 			swerve = self.backwardLookingProximitySensorPack:isSwerveEnabled()
 		end
@@ -1997,12 +1997,13 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	local newSpeed = AIDriver.proximityMinLimitedSpeed + normalizedD * deltaV
 	-- check for nil and NaN
 	if deg and deg == deg and swerve then
-		local offsetX = deg >= -30 and 5 or -5
+		local dx = dAvg * math.sin(math.rad(deg))
 		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self.ppc:setTemporaryShortLookaheadDistance(1000)
-		self.course:setTemporaryOffset(offsetX, 0, 1000)
-		self:debug('proximity: d = %.1f (%d), slow down, speed = %.1f, swerve = %.1f',
-				d, 100 * normalizedD, newSpeed, offsetX)
+		-- we should be at least 4 m from the other vehicle
+		self.course:changeTemporaryOffsetX(-(dx - 4), 1000)
+		self:debug('proximity: dAvg = %.1f (%d), slow down, speed = %.1f, swerve dx = %.1f',
+				dAvg, 100 * normalizedD, newSpeed, dx)
 	else
 		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self.course:setTemporaryOffset(0, 0, 4000)

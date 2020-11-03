@@ -18,12 +18,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ---@class ProximitySensor
 ProximitySensor = CpObject()
+--- No matter what angle, don't make it extend to left/right more than this
+ProximitySensor.maxSideExtension = 4
 
 function ProximitySensor:init(node, yRotationDeg, range, height)
     self.node = node
     self.yRotation = math.rad(yRotationDeg)
     self.lx, self.lz = MathUtil.getDirectionFromYRotation(self.yRotation)
-    self.range = math.min(range, 3 / math.cos((math.pi / 2 - math.abs(self.yRotation))))
+    self.range = math.min(range, ProximitySensor.maxSideExtension / math.cos((math.pi / 2 - math.abs(self.yRotation))))
     self.dx, self.dz = self.lx * self.range, self.lz * self.range
     self.height = height or 0
     self.lastUpdateLoopIndex = 0
@@ -219,7 +221,7 @@ function ProximitySensorPack:getClosestObjectDistanceAndRootVehicle(deg)
         local closestDistance = math.huge
         local closestRootVehicle
         -- weighted average over the different direction, weight depends on how close the closest object is
-        local totalWeight, totalDegs = 0, 0
+        local totalWeight, totalDegs, totalDistance = 0, 0, 0
         for _, deg in ipairs(self.directionsDeg) do
             local d = self.sensors[deg]:getClosestObjectDistance()
             if d < self.range then
@@ -228,13 +230,14 @@ function ProximitySensorPack:getClosestObjectDistanceAndRootVehicle(deg)
                 -- the direction should be in the tractor's system, therefore we need to compensate here with the
                 -- current rotation of the pack
                 totalDegs = totalDegs + weight * (deg + math.deg(self.rotation))
+                totalDistance = totalDistance + weight * d
             end
             if d < closestDistance then
                 closestDistance = d
                 closestRootVehicle = self.sensors[deg]:getClosestRootVehicle()
             end
         end
-        return closestDistance, closestRootVehicle, totalDegs / totalWeight
+        return closestDistance, closestRootVehicle, totalDegs / totalWeight, totalDistance / totalWeight
     end
     return math.huge, nil, deg
 end
