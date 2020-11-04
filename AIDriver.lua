@@ -134,7 +134,7 @@ AIDriver.myStates = {
 --- Create a new driver (usage: aiDriver = AIDriver(vehicle)
 -- @param vehicle to drive. Will set up a course to drive from vehicle.Waypoints
 function AIDriver:init(vehicle)
-	courseplay.debugVehicle(11,vehicle,'AIDriver:init()') 
+	courseplay.debugVehicle(11,vehicle,'AIDriver:init()')
 	self.debugChannel = 14
 	self.mode = courseplay.MODE_TRANSPORT
 	self.states = {}
@@ -1942,6 +1942,16 @@ function AIDriver:disableProximitySwerve()
 	if self.backwardLookingProximitySensorPack then self.backwardLookingProximitySensorPack:disableSwerve() end
 end
 
+function AIDriver:haveHeadOnConflictWith(vehicle)
+	if vehicle and self.trafficConflictDetector and
+			self:isTrafficConflictDetectionEnabled() and
+			self.trafficConflictDetector:isSpeedControlEnabled() and
+			self.trafficConflictDetector:haveHeadOnConflictWith(vehicle) then
+		return true
+	else
+		return false
+	end
+end
 
 function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 
@@ -1951,18 +1961,18 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 		return maxSpeed, allowedToDrive
 	end
 	-- d is minimum distance from any object in the proximity sensor's range
-	local d, vehicle, range, deg, dAvg, swerve = math.huge, nil, 10, 0, math.huge, false
+	local d, vehicle, range, deg, dAvg, swerveEnabled = math.huge, nil, 10, 0, math.huge, false
 	if moveForwards then
 		if self.forwardLookingProximitySensorPack and self.forwardLookingProximitySensorPack:isSpeedControlEnabled() then
 			d, vehicle, deg, dAvg = self.forwardLookingProximitySensorPack:getClosestObjectDistanceAndRootVehicle()
 			range = self.forwardLookingProximitySensorPack:getRange()
-			swerve = self.forwardLookingProximitySensorPack:isSwerveEnabled()
+			swerveEnabled = self.forwardLookingProximitySensorPack:isSwerveEnabled()
 		end
 	else
 		if self.backwardLookingProximitySensorPack and self.backwardLookingProximitySensorPack:isSpeedControlEnabled() then
 			d, vehicle, deg, dAvg = self.backwardLookingProximitySensorPack:getClosestObjectDistanceAndRootVehicle()
 			range = self.backwardLookingProximitySensorPack:getRange()
-			swerve = self.backwardLookingProximitySensorPack:isSwerveEnabled()
+			swerveEnabled = self.backwardLookingProximitySensorPack:isSwerveEnabled()
 		end
 	end
 	-- we only slow down or swerve for other vehicles, if the proximity sensor hits something else, ignore (for now at least)
@@ -1996,7 +2006,7 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	local deltaV = maxSpeed - AIDriver.proximityMinLimitedSpeed
 	local newSpeed = AIDriver.proximityMinLimitedSpeed + normalizedD * deltaV
 	-- check for nil and NaN
-	if deg and deg == deg and swerve then
+	if deg and deg == deg and swerveEnabled and self:haveHeadOnConflictWith(vehicle) then
 		local dx = dAvg * math.sin(math.rad(deg))
 		-- which direction to swerve (have a little bias for right, sorry UK folks :)
 		local dir = dx > -2 and 1 or -1

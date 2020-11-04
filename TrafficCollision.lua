@@ -730,6 +730,15 @@ function TrafficConflictDetector:shouldSlowDown()
 	return false
 end
 
+function TrafficConflictDetector:haveHeadOnConflictWith(vehicle)
+	for _, conflict in ipairs(self.conflicts) do
+		if vehicle == conflict:getConflictingVehicle() and conflict.headOn then
+			return true
+		end
+	end
+	return false
+end
+
 function TrafficConflictDetector:delete()
 	self:removeAllConflicts()
 	CollisionDetector.delete(self)

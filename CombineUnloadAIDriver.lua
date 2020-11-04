@@ -225,7 +225,7 @@ end
 
 function CombineUnloadAIDriver:isTrafficConflictDetectionEnabled()
 	return self.trafficConflictDetectionEnabled and
-			(self.state == self.states.ON_STREET or
+			(self.state == self.states.ON_UNLOAD_COURSE or
 			(self.state == self.states.ON_FIELD and self.onFieldState.properties.checkForTrafficConflict))
 end
 
@@ -494,7 +494,7 @@ function CombineUnloadAIDriver:holdCombine()
 end
 
 function CombineUnloadAIDriver:getNominalSpeed()
-	if self.state == self.states.ON_STREET then
+	if self.state == self.states.ON_UNLOAD_COURSE then
 		return self:getRecordedSpeed()
 	else
 		return self:getFieldSpeed()
