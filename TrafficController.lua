@@ -27,7 +27,7 @@ Conflict.detectionThresholdMilliSec = 0
 Conflict.clearThresholdMilliSecNormal = 1000
 -- if this is a head-on conflict where we must yield to the other vehicle, don't clear the conflict for quite
 -- a while, giving some time to the other vehicle to drive around us
-Conflict.clearThresholdMilliSecHeadOnYield = 30000
+Conflict.clearThresholdMilliSecHeadOnYield = 20000
 
 function Conflict:init(vehicle, otherVehicle, triggerId, d, eta, otherD, otherEta, yRotDiff)
 	self.debugChannel = 3
