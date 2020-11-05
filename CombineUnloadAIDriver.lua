@@ -560,7 +560,7 @@ function CombineUnloadAIDriver:onLastWaypoint()
 			AIDriver.onLastWaypoint(self)
 			return
 		elseif self.onFieldState == self.states.DRIVE_TO_FIRST_UNLOADER then
-			self:setNewOnFieldState(self.states.FOLLOW_FIRST_UNLOADER)
+			self:startDrivingToChopper()
 		elseif self.onFieldState == self.states.DRIVE_TO_COMBINE or
 			self.onFieldState == self.states.DRIVE_TO_MOVING_COMBINE then
 			self:startWorking()
@@ -1391,8 +1391,8 @@ function CombineUnloadAIDriver:startPathfindingToCombine(onPathfindingDoneFunc, 
 		self:setNewOnFieldState(self.states.WAITING_FOR_PATHFINDER)
 		self:startPathfinding(self:getCombineRootNode(), xOffset, zOffset, 0, nil, onPathfindingDoneFunc)
 	else
-		self:startWaitingForCombine()
 		self:debug('Can\'t start pathfinding, too close?')
+		self:startWorking()
 	end
 end
 
@@ -1419,7 +1419,8 @@ function CombineUnloadAIDriver:startPathfindingToFirstUnloader(onPathfindingDone
 	if self:isPathfindingNeeded(self.vehicle, AIDriverUtil.getDirectionNode(self.firstUnloader), 0, 0) then
 		self:setNewOnFieldState(self.states.WAITING_FOR_PATHFINDER)
 		-- ignore first unloader for pathfinding, we'll rely on our traffic conflict detection to avoid collisions
-		self:startPathfinding(self.firstUnloader.rootNode, 0, 0, 0, self.firstUnloader, onPathfindingDoneFunc)
+		-- target is a bit behind the first unloader so our goal will never overlap with the chopper
+		self:startPathfinding(self.firstUnloader.rootNode, 0, -5, 0, self.firstUnloader, onPathfindingDoneFunc)
 	else
 		self:debug('Won\'t start pathfinding to first unloader, too close?')
 		self:startFollowingFirstUnloader()

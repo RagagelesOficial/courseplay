@@ -25,9 +25,8 @@ Conflict = CpObject()
 Conflict.detectionThresholdMilliSec = 0
 -- a collision trigger must be cleared for at least so many milliseconds before it is removed from a conflict
 Conflict.clearThresholdMilliSecNormal = 1000
--- if this is a head-on conflict where we must yield to the other vehicle, don't clear the conflict for quite
--- a while, giving some time to the other vehicle to drive around us
-Conflict.clearThresholdMilliSecHeadOnYield = 20000
+-- if this is a head-on conflict, don't clear the conflict while we drive around the other vehicle
+Conflict.clearThresholdMilliSecHeadOn = 12000
 
 function Conflict:init(vehicle, otherVehicle, triggerId, d, eta, otherD, otherEta, yRotDiff)
 	self.debugChannel = 3
@@ -82,8 +81,8 @@ function Conflict:onCleared(triggerId)
 end
 
 function Conflict:getClearThresholdMilliSec()
-	if self.headOn and self.mustYield then
-		return Conflict.clearThresholdMilliSecHeadOnYield
+	if self.headOn then
+		return Conflict.clearThresholdMilliSecHeadOn
 	else
 		return Conflict.clearThresholdMilliSecNormal
 	end
