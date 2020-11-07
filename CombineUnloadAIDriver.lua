@@ -93,7 +93,6 @@ CombineUnloadAIDriver.myStates = {
 	ALIGN_TO_CHOPPER_AFTER_TURN = {isUnloadingChopper = true},
 	MOVING_OUT_OF_WAY = {isUnloadingChopper = true},
 	WAITING_FOR_MANEUVERING_COMBINE = {},
-	RECALCULATING_PATH = {}
 }
 
 --- Constructor
@@ -231,38 +230,6 @@ function CombineUnloadAIDriver:isTrafficConflictDetectionEnabled()
 	return self.trafficConflictDetectionEnabled and
 			(self.state == self.states.ON_UNLOAD_COURSE or
 			(self.state == self.states.ON_FIELD and self.onFieldState.properties.checkForTrafficConflict))
-end
-
-function CombineUnloadAIDriver:recalculatePathOnTrafficConflict(conflictingVehicle)
-	if self.state == self.states.ON_UNLOAD_COURSE then
-		self:info('recalculating path on unload course not implemented.')
-		return
-	elseif self.state == self.states.ON_FIELD then
-		conflictingVehicle.cp.driver:onConflictingVehicleRecalculating(self.vehicle)
-		if self.onFieldState == self.states.WAITING_FOR_PATHFINDER then
-			self:debugSparse('Already calculating a path.')
-			return
-		end
-		self:debug('Recalculating path due to traffic conflict with %s, state: %s',
-				nameNum(conflictingVehicle), self.onFieldState.name)
-		if self.onFieldState == self.states.DRIVE_TO_COMBINE or
-				self.onFieldState == self.states.DRIVE_TO_MOVING_COMBINE then
-			if self.combineToUnload.cp.driver:isChopper() then
-				self:startDrivingToChopper()
-			else
-				self:startDrivingToCombine()
-			end
-		end
-		if self.onFieldState == self.states.DRIVE_TO_FIRST_UNLOADER then
-			self:startDrivingToChopper()
-		end
-		if self.onFieldState == self.states.DRIVE_TO_UNLOAD_COURSE then
-			self:startUnloadCourse()
-		end
-	end
-	-- do not hold or slow down for this vehicle, we'll recalculate a course which avoids
-	-- it anyway, even if some of the collisions are still active.
-	self.trafficConflictDetector:disableSpeedControlForVehicle(conflictingVehicle)
 end
 
 function CombineUnloadAIDriver:startWaitingForCombine()
@@ -1266,7 +1233,7 @@ function CombineUnloadAIDriver:setupFollowCourse()
 	end
 	local followCourse = self.combineCourse:copy(self.vehicle)
 	-- relevant waypoint is the closest to the combine, prefer that so our PPC will get us on course with the proper offset faster
-	local followCourseIx = self.combineToUnload.cp.driver:getRelevantWaypointIx() or self.combineCourse:getCurrentWaypointIx()
+	local followCourseIx = self.combineToUnload.cp.driver:getClosestFieldworkWaypointIx() or self.combineCourse:getCurrentWaypointIx()
 	return followCourse, followCourseIx
 end
 

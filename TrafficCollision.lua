@@ -407,8 +407,6 @@ TrafficConflictDetector.speedAverageCycles = 20
 TrafficConflictDetector.holdDistance = 15
 -- if a conflict is closer than this, slow down
 TrafficConflictDetector.slowDownDistance = 30
--- maximum time to hold for another vehicle recalculating
-TrafficConflictDetector.maxHoldForRecalculationSeconds = 30
 
 --- @param vehicle table
 --- @param course Course
@@ -667,16 +665,6 @@ function TrafficConflictDetector:getClosestConflictingVehicle()
 	end
 end
 
-function TrafficConflictDetector:shouldRecalculate()
-	-- TODO: no recalculation for now, we let the proximity sensors take care of this
-	if false and self.closestConflict and self.ignoreVehicleForSpeedControl ~= self.closestConflict:getConflictingVehicle() then
-		-- if we must yield to the other vehicle and this is a head on conflict then we need to recalculate
-		-- our path around the other vehicle
-		return self.closestConflict.mustYield and self.closestConflict.headOn, self.closestConflict:getConflictingVehicle()
-	else
-		return false
-	end
-end
 
 --- Notification from another vehicle in conflict with us that it has evaluated the conflict. This is to
 --- make sure both vehicles in a conflict agree on a resolution
@@ -689,24 +677,7 @@ function TrafficConflictDetector:onRightOfWayEvaluated(otherVehicle, mustYield, 
 	end
 end
 
---- Notification from another vehicle in conflict with us that it intends to recalculate its own course to
---- resolve this conflict. This means we have to stop moving so it can plan the course around us
-function TrafficConflictDetector:onConflictingVehicleRecalculating(otherVehicle)
-	self:debug('Hold while %s recalculating its course to avoid us', nameNum(otherVehicle))
-	self.conflictingVehicleRecalculatingStarted = g_time
-end
-
 function TrafficConflictDetector:shouldHold()
-	if self.conflictingVehicleRecalculatingStarted then
-		if (g_time - self.conflictingVehicleRecalculatingStarted) > TrafficConflictDetector.maxHoldForRecalculationSeconds then
-			-- if we someone is recalculating its course to avoid us, don't move
-			self:debugSparse('Holding for a conflicting vehicle recalculating its course for us')
-			return true
-		else
-			-- reset if it's been a long time
-			self.conflictingVehicleRecalculatingStarted = nil
-		end
-	end
 	for _, conflict in ipairs(self.conflicts) do
 		if self.ignoreVehicleForSpeedControl ~= conflict:getConflictingVehicle() then
 			-- if close enough and I must yield but it is not a head on (as that is being take care by the proximity sensors)

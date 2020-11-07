@@ -1428,6 +1428,15 @@ function CombineAIDriver:isFieldworkUnloadOrRefillStateOneOf(states)
 	return self:isStateOneOf(self.fieldworkUnloadOrRefillState, states)
 end
 
+function CombineAIDriver:getClosestFieldworkWaypointIx()
+	if self.course:isTemporary() then
+		return self.fieldworkCourse:getLastPassedWaypointIx()
+	else
+		-- if currently on the fieldwork course, this is the best estimate
+		return self:getRelevantWaypointIx()
+	end
+end
+
 --- Maneuvering means turning or working on a pocket or pulling back due to the pipe in fruit
 --- We don't want to get too close to a maneuvering combine until it is done
 function CombineAIDriver:isManeuvering()

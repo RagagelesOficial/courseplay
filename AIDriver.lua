@@ -1710,21 +1710,10 @@ function AIDriver:onRightOfWayEvaluated(otherVehicle, mustYield, headOn)
 	end
 end
 
-function AIDriver:onConflictingVehicleRecalculating(otherVehicle)
-	if self.trafficConflictDetector then
-		self.trafficConflictDetector:onConflictingVehicleRecalculating(otherVehicle)
-	end
-end
-
 function AIDriver:removeAllConflictsForVehicle(otherVehicle)
 	if self.trafficConflictDetector then
 		self.trafficConflictDetector:removeAllConflictsForVehicle(otherVehicle)
 	end
-end
-
-function AIDriver:recalculatePathOnTrafficConflict()
-	-- default do nothing, should be implemented in the derived classes
-	return
 end
 
 function AIDriver:slowDownForTraffic(maxSpeed, allowedToDrive)
@@ -1747,10 +1736,6 @@ function AIDriver:slowDownForTraffic(maxSpeed, allowedToDrive)
 		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self:setInfoText('TRAFFIC')
 		allowedToDrive = false
-		local shouldRecalculate, conflictingVehicle = self.trafficConflictDetector:shouldRecalculate()
-		if shouldRecalculate then
-			self:recalculatePathOnTrafficConflict(conflictingVehicle)
-		end
 	elseif self.trafficConflictDetector:shouldSlowDown() then
 		self:debugSparse('Traffic conflict with %s in %.1f m, half speed', nameNum(closestConflictingVehicle), closestConflictDistance)
 		self:clearInfoText('TRAFFIC')
@@ -2030,12 +2015,12 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 		local error = setPoint - dx
 		local offsetChange = 0.5 * error
 		self.course:changeTemporaryOffsetX(offsetChange, 1000)
-		self:debug('proximity: dAvg = %.1f (%d), slow down, speed = %.1f, swerve dx = %.1f, setPoint = %.1f, error = %.1f, offsetChange = %.1f',
+		self:debugSparse('proximity: dAvg = %.1f (%d), slow down, speed = %.1f, swerve dx = %.1f, setPoint = %.1f, error = %.1f, offsetChange = %.1f',
 				dAvg, 100 * normalizedD, newSpeed, dx, setPoint, error, offsetChange)
 	else
 		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self.course:setTemporaryOffset(0, 0, 4000)
-		self:debug('proximity: d = %.1f (%d), slow down, speed = %.1f, deg = %s',
+		self:debugSparse('proximity: d = %.1f (%d), slow down, speed = %.1f, deg = %s',
 				d, 100 * normalizedD, newSpeed, tostring(deg))
 	end
 	return newSpeed, allowedToDrive, moveForwards
