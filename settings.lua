@@ -2289,7 +2289,7 @@ MaxDeltaAngleAtGoal = CpObject(FloatSetting)
 function MaxDeltaAngleAtGoal:init()
 	IntSetting.init(self, 'maxDeltaAngleAtGoal', 'MaxDeltaAngleAtGoal',
 			'Maximum angle difference allowed at goal')
-	self:set(math.pi / 2)
+	self:set(math.pi / 4)
 end
 
 --toggleHeadlandDirection

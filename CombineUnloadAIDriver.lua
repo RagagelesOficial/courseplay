@@ -53,6 +53,10 @@ This is currently screwed up...
 
 ]]--
 
+-- TODO: swerve to the correct direction at low angles
+-- TODO: move back second unloader when first one moves back
+-- TODO: recalculate path when stuck in traffic longer
+
 ---@class CombineUnloadAIDriver : AIDriver
 CombineUnloadAIDriver = CpObject(AIDriver)
 
@@ -708,7 +712,6 @@ end
 
 function CombineUnloadAIDriver:getDrivingCoordsBehindTractor(tractorToFollow)
 	local sx,sy,sz = localToWorld(self:getDirectionNode(),0,0,5)
-	local sideShift,_,backShift = worldToLocal(tractorToFollow.cp.directionNode,sx,sy,sz)
 	local tx,ty,tz = localToWorld(tractorToFollow.cp.directionNode,0,0,math.max(-30,backShift))
 	return tx,ty,tz
 end
@@ -716,7 +719,6 @@ end
 function CombineUnloadAIDriver:getDrivingCoordsBesideTractor(tractorToFollow)
 	local offset = self:getChopperOffset(self.combineToUnload)
 	local sx,sy,sz = localToWorld(self:getDirectionNode(),0,0,5)
-	local sideShift,_,backShift = worldToLocal(tractorToFollow.cp.directionNode,sx,sy,sz)
 	local newX = 0
 	if offset < 0 then
 		newX = - 4.5
@@ -735,7 +737,6 @@ end
 function CombineUnloadAIDriver:getSpeedBesideChopper(targetNode)
 	local allowedToDrive = true
 	local baseNode = self:getPipesBaseNode(self.combineToUnload)
-	local bnX, bnY, bnZ = getWorldTranslation(baseNode)
 	--Discharge Node to AutoAimNode
 	local wx, wy, wz = getWorldTranslation(targetNode)
 	--cpDebug:drawLine(dnX,dnY,dnZ, 100, 100, 100, wx,wy,wz)
@@ -2033,7 +2034,7 @@ function CombineUnloadAIDriver:followFirstUnloader()
 	local dFromFirstUnloader = self.followCourse:getDistanceBetweenWaypoints(self:getRelevantWaypointIx(),
 			self.firstUnloader.cp.driver:getRelevantWaypointIx())
 
-	if self.firstUnloader.cp.driver:isStopped() or AIDriverUtil.isReversing(self.firstUnloader) then
+	if self.firstUnloader.cp.driver:isStopped() then
 		self:setSpeed(0)
 	else
 		-- adjust our speed if we are too close or too far

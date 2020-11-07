@@ -119,7 +119,9 @@ AIDriver.proximitySensorRange = 10
 -- the sensor will proportionally reduce speed when objects are in range down to this limit (won't set a speed lower than this)
 AIDriver.proximityMinLimitedSpeed = 2
 -- if anything closer than this, we stop
-AIDriver.proximityLimitLow = 1
+AIDriver.proximityLimitLow = 1.5
+-- if anything closer than this, we reverse
+AIDriver.proximityLimitReverse = 1
 
 AIDriver.APPROACH_AUGER_TRIGGER_SPEED = 3
 AIDriver.EMERGENCY_BRAKE_FORCE = 1000000
@@ -420,10 +422,9 @@ end
 -- to reverse with trailer.
 function AIDriver:driveCourse(dt)
 	self:updateLights()
-	self:updateTrafficConflictDetector(self.course, self.ppc:getRelevantWaypointIx(), self:getNominalSpeed())
 
 	-- stop for fuel if needed
-	if not self:checkFuel() then 
+	if not self:checkFuel() then
 		self:hold()
 	end
 
@@ -442,16 +443,18 @@ function AIDriver:driveCourse(dt)
 
 	local isInTrigger, isAugerWagonTrigger = self.triggerHandler:isInTrigger()
 --	if self:getIsInFilltrigger() or self:hasTipTrigger() then-- or isInTrigger then
-	if isInTrigger then 
+	if isInTrigger then
 		self:setSpeed(self.vehicle.cp.speeds.approach)
-		if isAugerWagonTrigger then 
+		if isAugerWagonTrigger then
 			self:setSpeed(self.APPROACH_AUGER_TRIGGER_SPEED)
 		end
 	end
-	
+
 	self:slowDownForWaitPoints()
 
 	self:stopEngineIfNotNeeded()
+
+	self:updateTrafficConflictDetector(self.course, self.ppc:getRelevantWaypointIx(), self:getSpeed())
 
 	-- check if reversing
 	local lx, lz, moveForwards, isReverseActive = self:getReverseDrivingDirection()
@@ -493,7 +496,7 @@ function AIDriver:driveVehicleToLocalPosition(dt, allowedToDrive, moveForwards, 
 		-- TODO: remove allowedToDrive parameter and only use self.allowedToDrive
 	if not self.allowedToDrive then allowedToDrive = false end
 
-	maxSpeed, allowedToDrive = self:checkSafetyConstraints(maxSpeed, allowedToDrive, moveForwards)
+	maxSpeed, allowedToDrive, moveForwards = self:checkSafetyConstraints(maxSpeed, allowedToDrive, moveForwards)
 
 	-- driveToPoint does not like speeds under 1.5 (will stop) so make sure we set at least 2
 	if maxSpeed > 0.01 and maxSpeed < 2 then
@@ -546,7 +549,7 @@ function AIDriver:driveVehicleBySteeringAngle(dt, moveForwards, steeringAngleNor
 	if self.vehicle.firstTimeRun then
 		local acc = self.acceleration;
 
-		maxSpeed, self.allowedToDrive = self:checkSafetyConstraints(maxSpeed, self.allowedToDrive, moveForwards)
+		maxSpeed, self.allowedToDrive, moveForwards = self:checkSafetyConstraints(maxSpeed, self.allowedToDrive, moveForwards)
 
 		if maxSpeed ~= nil and maxSpeed ~= 0 then
 			if steeringAngleNormalized >= self.slowAngleLimit then
@@ -1917,9 +1920,9 @@ end
 
 function AIDriver:checkSafetyConstraints(maxSpeed, allowedToDrive, moveForwards)
 	local proximityLimitedSpeed, trafficLimitedSpeed
-	proximityLimitedSpeed, allowedToDrive = self:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
+	proximityLimitedSpeed, allowedToDrive, moveForwards = self:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	trafficLimitedSpeed, allowedToDrive = self:slowDownForTraffic(maxSpeed, allowedToDrive)
-	return math.min(proximityLimitedSpeed, trafficLimitedSpeed), allowedToDrive
+	return math.min(proximityLimitedSpeed, trafficLimitedSpeed), allowedToDrive, moveForwards
 end
 
 function AIDriver:enableProximitySpeedControl()
@@ -1958,8 +1961,9 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	if maxSpeed == 0 or not allowedToDrive then
 		--self.course:setTargetTemporaryOffsetX(0)
 		-- we are not going anywhere anyway, no use of proximity sensor here
-		return maxSpeed, allowedToDrive
+		return maxSpeed, allowedToDrive, moveForwards
 	end
+
 	-- d is minimum distance from any object in the proximity sensor's range
 	local d, vehicle, range, deg, dAvg, swerveEnabled = math.huge, nil, 10, 0, math.huge, false
 	if moveForwards then
@@ -1980,7 +1984,20 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self:clearInfoText('TRAFFIC')
 		self.course:setTemporaryOffset(0, 0, 4000)
-		return maxSpeed, allowedToDrive
+		return maxSpeed, allowedToDrive, moveForwards
+	end
+
+	local normalizedD = d / (range - AIDriver.proximityLimitLow)
+	self:debug('prox %.1f la = %.1f, d = %.1f norm = %d', self.course.temporaryOffsetX:get(),
+			self.ppc:getLookaheadDistance(), d, normalizedD * 100)
+
+	if d < AIDriver.proximityLimitReverse then
+		-- too close, reverse
+		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
+		self:setInfoText('TRAFFIC')
+		self:setSpeed(self.vehicle.cp.speeds.reverse)
+		self:debugSparse('proximity: d = %.1f, way too close, reversing.', d)
+		return maxSpeed, allowedToDrive, false
 	end
 
 	if d < AIDriver.proximityLimitLow then
@@ -1988,19 +2005,15 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self:setInfoText('TRAFFIC')
 		self:debugSparse('proximity: d = %.1f, too close, stop.', d)
-		return maxSpeed, false
+		return maxSpeed, false, moveForwards
 	end
-	local normalizedD = d / (range - AIDriver.proximityLimitLow)
-
-	self:debug('prox %.1f la = %.1f, norm = %d', self.course.temporaryOffsetX:get(), self.ppc:getLookaheadDistance(), normalizedD * 100)
-
 
 	if normalizedD > 1 then
 		self:clearInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self:clearInfoText('TRAFFIC')
 		self.course:setTemporaryOffset(0, 0, 4000)
 		-- nothing in range (d is a huge number, at least bigger than range), don't change anything
-		return maxSpeed, allowedToDrive
+		return maxSpeed, allowedToDrive, moveForwards
 	end
 	-- something in range, reduce speed proportionally
 	local deltaV = maxSpeed - AIDriver.proximityMinLimitedSpeed
@@ -2025,7 +2038,7 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 		self:debug('proximity: d = %.1f (%d), slow down, speed = %.1f, deg = %s',
 				d, 100 * normalizedD, newSpeed, tostring(deg))
 	end
-	return newSpeed, allowedToDrive
+	return newSpeed, allowedToDrive, moveForwards
 end
 
 function AIDriver:isAutoDriveDriving()
