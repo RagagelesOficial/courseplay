@@ -2007,7 +2007,7 @@ function AIDriver:checkProximitySensor(maxSpeed, allowedToDrive, moveForwards)
 	if deg and deg == deg and swerveEnabled and (not vehicle:getIsCourseplayDriving() or self:haveHeadOnConflictWith(vehicle)) then
 		local dx = dAvg * math.sin(math.rad(deg))
 		-- which direction to swerve (have a little bias for right, sorry UK folks :)
-		local dir = dx > -2 and 1 or -1
+		local dir = dx > -1.2 and 1 or -1
 		self:setInfoText('SLOWING_DOWN_FOR_TRAFFIC')
 		self.ppc:setTemporaryShortLookaheadDistance(1000)
 		-- we should be at least 4 m from the other vehicle

@@ -160,7 +160,7 @@ function Conflict:evaluateRightOfWay()
 				self.mustYield = false
 				self:debug('I detected the conflict first, I have right of way')
 			end
-			if math.abs(self.closestTrigger.yRotDiff) > math.rad(135) then
+			if math.abs(self.closestTrigger.yRotDiff) > math.rad(110) then
 				-- head on conflict, the proximity sensor will take care of this
 				self:debug('head on conflict')
 				self.headOn = true
