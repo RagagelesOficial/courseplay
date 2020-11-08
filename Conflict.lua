@@ -161,7 +161,7 @@ function Conflict:evaluateRightOfWay()
 				self:debug('I detected the conflict first, I have right of way')
 			end
 			if math.abs(self.closestTrigger.yRotDiff) > math.rad(135) then
-				-- head on conflict, hold the vehicle with right of way until the other one recalculates
+				-- head on conflict, the proximity sensor will take care of this
 				self:debug('head on conflict')
 				self.headOn = true
 			end
@@ -180,79 +180,4 @@ function Conflict:onRightOfWayEvaluated(mustYield, headOn)
 	self.headOn = headOn
 	self.rightOfWayEvaluated = true
 end
-
---- TrafficController provides a cooperative collision avoidance facility for all Courseplay driven vehicles.
---
-
-TrafficController = CpObject()
-TrafficController.debugChannel = 4
-
-function TrafficController:init()
-	---@type Conflict[]
-	self.conflicts = {}
-	self:debug('initialized')
-end
-
--- This should be called once in an update cycle (globally, not vehicle specific)
-function TrafficController:update()
-	-- iterate backwards as we'll remove table elements
-	for i = #self.conflicts, 1, -1 do
-		---@type Conflict
-		local conflict = self.conflicts[i]
-		conflict:update()
-		if conflict:isCleared() then
-			self:debug('Conflict cleared: %s', self.conflicts[i])
-			--self:notifyVehiclesOnConflictCleared()
-			table.remove(self.conflicts, i)
-		end
-	end
-	self:drawDebugInfo()
-end
-
-function TrafficController:debug(...)
-	courseplay:debug('TrafficController: ' .. string.format(...), self.debugChannel)
-end
-
-function TrafficController:drawDebugInfo()
-	if not courseplay.debugChannels[self.debugChannel] then return end
-	local x, y, size = 0.1, 0.8, 0.012
-	for i, conflict in ipairs(self.conflicts) do
-		renderText(x, y, size, string.format('%d %s', i, conflict))
-		y = y - size * 1.1
-	end
-end
-
-function TrafficController:onConflictDetected(vehicle, otherVehicle, triggerId, d, eta, otherD, otherEta, yRotDiff)
-	for _, conflict in ipairs(self.conflicts) do
-		if conflict:isBetween(vehicle, otherVehicle) then
-			conflict:onDetected(triggerId, d, eta, otherD, otherEta, yRotDiff)
-			return
-		end
-	end
-	-- first conflict for this vehicle pair
-	table.insert(self.conflicts, Conflict(vehicle, otherVehicle, triggerId, d, eta, otherD, otherEta, yRotDiff))
-	self:debug('Conflict added: %s', self.conflicts[#self.conflicts])
-end
-
-function TrafficController:onConflictCleared(vehicle, otherVehicle, triggerId)
-	for i, conflict in ipairs(self.conflicts) do
-		if conflict:isBetween(vehicle, otherVehicle) then
-			conflict:onCleared(vehicle, triggerId)
-			return
-		end
-	end
-end
-
-function TrafficController:removeAllConflictsForVehicle(vehicle)
-	self:debug('Removing all traffic conflicts for %s', nameNum(vehicle))
-	for i = #self.conflicts, 1, -1 do
-		---@type Conflict
-		local conflict = self.conflicts[i]
-		if conflict:isVehicleInvolved(vehicle) then
-			table.remove(self.conflicts, i)
-		end
-	end
-end
-
-g_trafficController = TrafficController()
 
