@@ -901,9 +901,6 @@ function CombineAIDriver:startTurn(ix)
 		self.turnType = self.turnTypes.UP_DOWN_NORMAL
 		UnloadableFieldworkAIDriver.startTurn(self, ix)
 	end
-
-	self:sendTurnStartEventToUnloaders(ix, self.turnType)
-
 end
 
 function CombineAIDriver:isTurning()
@@ -1333,12 +1330,6 @@ function CombineAIDriver:deregisterUnloader(driver,noEventSend)
 	self.unloaders[driver] = nil
 	if not noEventSend then 
 		UnloaderEvents:sendDeregisterUnloaderEvent(driver,self)
-	end
-end
-
-function CombineAIDriver:sendTurnStartEventToUnloaders(ix, turnType)
-	for _, unloader in pairs(self.unloaders) do
-		if unloader then unloader:onCombineTurnStart(ix, turnType) end
 	end
 end
 

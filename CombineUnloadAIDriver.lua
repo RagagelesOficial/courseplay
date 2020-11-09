@@ -400,7 +400,7 @@ function CombineUnloadAIDriver:driveOnField(dt)
 	elseif self.onFieldState == self.states.MOVE_BACK_FULL then
 		local _, dx, dz = self:getDistanceFromCombine()
 		-- drive back way further if we are behind a chopper to have room
-		local dDriveBack = dx < 3 and 0.75 * self.vehicle.cp.turnDiameter or 0
+		local dDriveBack = math.abs(dx) < 3 and 0.75 * self.vehicle.cp.turnDiameter or 0
 		if dz > dDriveBack then
 			self:releaseUnloader()
 			self:startUnloadCourse()
@@ -1321,7 +1321,7 @@ function CombineUnloadAIDriver:startDrivingToCombine()
 				self:debug('Start pathfinding to moving combine, %d m, ETE: %d s, meet combine at waypoint %d, xOffset = %.1f, zOffset = %.1f',
 						d, estimatedSecondsEnroute, rendezvousWaypointIx, xOffset, zOffset)
 				self:startPathfinding(rendezvousWaypoint, xOffset, zOffset, 0,
-						self.combineToUnload, self.onPathfindingDoneToMovingCombine)
+						{self.combineToUnload}, self.onPathfindingDoneToMovingCombine)
 			else
 				self:debug('Rendezvous waypoint %d to moving combine too close, wait a bit', rendezvousWaypointIx)
 				self:startWaitingForCombine()
@@ -1357,7 +1357,7 @@ function CombineUnloadAIDriver:startPathfindingToCombine(onPathfindingDoneFunc, 
 	-- when it is on the headland.
 	if self:isPathfindingNeeded(self.vehicle, self:getCombineRootNode(), xOffset, zOffset) then
 		self:setNewOnFieldState(self.states.WAITING_FOR_PATHFINDER)
-		self:startPathfinding(self:getCombineRootNode(), xOffset, zOffset, 0, nil, onPathfindingDoneFunc)
+		self:startPathfinding(self:getCombineRootNode(), xOffset, zOffset, 0, {}, onPathfindingDoneFunc)
 	else
 		self:debug('Can\'t start pathfinding, too close?')
 		self:startWorking()
@@ -1386,9 +1386,8 @@ function CombineUnloadAIDriver:startPathfindingToFirstUnloader(onPathfindingDone
 	-- when it is on the headland.
 	if self:isPathfindingNeeded(self.vehicle, AIDriverUtil.getDirectionNode(self.firstUnloader), 0, 0) then
 		self:setNewOnFieldState(self.states.WAITING_FOR_PATHFINDER)
-		-- ignore first unloader for pathfinding, we'll rely on our traffic conflict detection to avoid collisions
-		-- target is a bit behind the first unloader so our goal will never overlap with the chopper
-		self:startPathfinding(self.firstUnloader.rootNode, 0, -5, 0, self.firstUnloader, onPathfindingDoneFunc)
+		-- ignore everyone as by the time we get there they'll have moved anyway
+		self:startPathfinding(self.combineToUnload.rootNode, 0, -5, 0, {self.combineToUnload, self.firstUnloader}, onPathfindingDoneFunc)
 	else
 		self:debug('Won\'t start pathfinding to first unloader, too close?')
 		self:startFollowingFirstUnloader()
@@ -1498,7 +1497,7 @@ end
 -- Generic pathfinder wrapper
 ------------------------------------------------------------------------------------------------------------------------
 function CombineUnloadAIDriver:startPathfinding(
-		target, xOffset, zOffset, fieldNum, vehicleToIgnore,
+		target, xOffset, zOffset, fieldNum, vehiclesToIgnore,
 		pathfindingCallbackFunc)
 	if not self.pathfinder or not self.pathfinder:isActive() then
 
@@ -1516,12 +1515,12 @@ function CombineUnloadAIDriver:startPathfinding(
 			-- the same reference everywhere
 			self.pathfinder, done, path, goalNodeInvalid = PathfinderUtil.startPathfindingFromVehicleToWaypoint(
 					self.vehicle, target, -xOffset or 0, zOffset or 0, self.allowReversePathfinding,
-					fieldNum, { vehicleToIgnore },
+					fieldNum, vehiclesToIgnore,
 					self.vehicle.cp.settings.useRealisticDriving:is(true) and self.maxFruitPercent or math.huge, self.offFieldPenalty)
 		else
 			self.pathfinder, done, path, goalNodeInvalid = PathfinderUtil.startPathfindingFromVehicleToNode(
 					self.vehicle, target, xOffset or 0, zOffset or 0, self.allowReversePathfinding,
-					fieldNum, { vehicleToIgnore },
+					fieldNum, vehiclesToIgnore,
 					self.vehicle.cp.settings.useRealisticDriving:is(true) and self.maxFruitPercent or math.huge, self.offFieldPenalty)
 		end
 		if done then
@@ -2009,18 +2008,6 @@ function CombineUnloadAIDriver:followFirstUnloader()
 		local deltaV = MathUtil.clamp(error, -2, 2)
 		local speed = self.firstUnloader.lastSpeedReal * 3600 + deltaV
 		self:setSpeed(speed)
-	end
-end
-
-------------------------------------------------------------------------------------------------------------------------
--- Combine Event Listeners
-------------------------------------------------------------------------------------------------------------------------
-function CombineUnloadAIDriver:onCombineTurnStart(ix, turnType)
-	if self.state == self.states.ON_FIELD then
-		if self.onFieldState == self.states.FOLLOW_CHOPPER then
-			self:debug('chopper reached turn waypoint %d, start chopper turn', ix)
-			--self:startChopperTurn(ix, turnType)
-		end
 	end
 end
 
